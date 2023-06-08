@@ -29,6 +29,10 @@ async function run() {
 			.db('summerCamp')
 			.collection('classCollection');
 
+		const instructorCollection = client
+			.db('summerCamp')
+			.collection('instructorCollection');
+
 		app.get('/allClass', async (req, res) => {
 			const classes = await classCollection.find().toArray();
 			res.send(classes);
@@ -43,6 +47,16 @@ async function run() {
 				.find(query, options)
 				.limit(6)
 				.toArray();
+			res.send(classes);
+		});
+
+		app.get('/allInstructors', async (req, res) => {
+			const classes = await instructorCollection.find().toArray();
+			res.send(classes);
+		});
+
+		app.get('/sortInstructors', async (req, res) => {
+			const classes = await instructorCollection.find().limit(6).toArray();
 			res.send(classes);
 		});
 
