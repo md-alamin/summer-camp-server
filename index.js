@@ -29,9 +29,13 @@ async function run() {
 			.db('summerCamp')
 			.collection('classCollection');
 
-		const instructorCollection = client
+		// const instructorCollection = client
+		// 	.db('summerCamp')
+		// 	.collection('instructorCollection');
+
+		const usersCollection = client
 			.db('summerCamp')
-			.collection('instructorCollection');
+			.collection('usersCollection');
 
 		app.get('/allClass', async (req, res) => {
 			const classes = await classCollection.find().toArray();
@@ -50,14 +54,39 @@ async function run() {
 			res.send(classes);
 		});
 
-		app.get('/allInstructors', async (req, res) => {
-			const classes = await instructorCollection.find().toArray();
-			res.send(classes);
+		app.post('/users', async (req, res) => {
+			const user = req.body;
+			const query = { email: user.email };
+			const existingUser = await usersCollection.findOne(query);
+			if (existingUser) {
+				return res.send({ message: 'user already exists' });
+			}
+			const users = await usersCollection.insertOne(user);
+			res.send(users);
 		});
 
-		app.get('/sortInstructors', async (req, res) => {
-			const classes = await instructorCollection.find().limit(6).toArray();
-			res.send(classes);
+		app.get('/users/students', async (req, res) => {
+			const query = { role: 'student' };
+			const students = await usersCollection.find(query).toArray();
+			res.send(students);
+		});
+
+		app.get('/users/instructor', async (req, res) => {
+			const query = { role: 'instructor' };
+			const instructors = await usersCollection.find(query).toArray();
+			res.send(instructors);
+		});
+
+		app.get('/users/sortInstructor', async (req, res) => {
+			const query = { role: 'instructor' };
+			const instructor = await usersCollection.find(query).limit(6).toArray();
+			res.send(instructor);
+		});
+
+		app.get('/users/admin', async (req, res) => {
+			const query = { role: 'admin' };
+			const admin = await usersCollection.find(query).toArray();
+			res.send(admin);
 		});
 
 		// Send a ping to confirm a successful connection
