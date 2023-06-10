@@ -37,6 +37,7 @@ async function run() {
 			.db('summerCamp')
 			.collection('usersCollection');
 
+		// class api
 		app.get('/allClass', async (req, res) => {
 			const classes = await classCollection.find().toArray();
 			res.send(classes);
@@ -54,6 +55,7 @@ async function run() {
 			res.send(classes);
 		});
 
+		// users api
 		app.post('/users', async (req, res) => {
 			const user = req.body;
 			const query = { email: user.email };
@@ -71,6 +73,7 @@ async function run() {
 			res.send(students);
 		});
 
+		// instructor api
 		app.get('/users/instructor', async (req, res) => {
 			const query = { role: 'instructor' };
 			const instructors = await usersCollection.find(query).toArray();
@@ -81,6 +84,15 @@ async function run() {
 			const query = { role: 'instructor' };
 			const instructor = await usersCollection.find(query).limit(6).toArray();
 			res.send(instructor);
+		});
+
+		// get name and number of class for each instructor
+		app.get('/class/:name', async (req, res) => {
+			const name = decodeURIComponent(req.params.name);
+			const query = { instructor: name };
+			console.log(query);
+			const instructorClass = await classCollection.find(query).toArray();
+			res.send(instructorClass);
 		});
 
 		app.get('/users/admin', async (req, res) => {
