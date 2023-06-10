@@ -152,6 +152,13 @@ async function run() {
 
 		app.post('/cart', async (req, res) => {
 			const item = req.body;
+			const { classId, email } = item;
+			const query = { classId, email };
+
+			const existingCartItem = await cartCollection.findOne(query);
+			if (existingCartItem) {
+				return res.send({ error: true, message: 'class already exists' });
+			}
 			const result = await cartCollection.insertOne(item);
 			res.send(result);
 		});
