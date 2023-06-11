@@ -1,7 +1,7 @@
 const express = require('express');
 const app = express();
 const cors = require('cors');
-const { MongoClient, ServerApiVersion } = require('mongodb');
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const jwt = require('jsonwebtoken');
 require('dotenv').config();
 const port = process.env.PORT || 5000;
@@ -15,7 +15,7 @@ const verifyJWT = (req, res, next) => {
 	if (!authorization) {
 		return res
 			.status(401)
-			.send({ error: true, message: 'unauthorized access' });
+			.send({ error: true, message: 'Unauthorized Access' });
 	}
 
 	const token = authorization.split(' ')[1];
@@ -24,7 +24,7 @@ const verifyJWT = (req, res, next) => {
 		if (err) {
 			return res
 				.status(401)
-				.send({ error: true, message: 'unauthorized access' });
+				.send({ error: true, message: 'Unauthorized Access' });
 		}
 		req.decoded = decoded;
 		next();
@@ -73,7 +73,7 @@ async function run() {
 			if (user?.role !== 'student') {
 				return res
 					.status(403)
-					.send({ error: true, message: 'forbidden message' });
+					.send({ error: true, message: 'Forbidden Message' });
 			}
 			next();
 		};
@@ -85,7 +85,7 @@ async function run() {
 			if (user?.role !== 'student') {
 				return res
 					.status(403)
-					.send({ error: true, message: 'forbidden message' });
+					.send({ error: true, message: 'Forbidden Message' });
 			}
 			next();
 		};
@@ -97,7 +97,7 @@ async function run() {
 			if (user?.role !== 'student') {
 				return res
 					.status(403)
-					.send({ error: true, message: 'forbidden message' });
+					.send({ error: true, message: 'Forbidden Message' });
 			}
 			next();
 		};
@@ -122,6 +122,17 @@ async function run() {
 		});
 
 		// users api
+		app.get('/users', verifyJWT, async (req, res) => {
+			const users = await usersCollection.find().toArray();
+			res.send(users);
+		});
+
+		app.get('/users/students', async (req, res) => {
+			const query = { role: 'student' };
+			const students = await usersCollection.find(query).toArray();
+			res.send(students);
+		});
+
 		app.post('/users', async (req, res) => {
 			const user = req.body;
 			const query = { email: user.email };
@@ -133,24 +144,24 @@ async function run() {
 			res.send(users);
 		});
 
-		app.get('/users/students', async (req, res) => {
-			const query = { role: 'student' };
-			const students = await usersCollection.find(query).toArray();
-			res.send(students);
-		});
-
 		// cart api
-		app.get('/cart/:email', async (req, res) => {
+		app.get('/cart/:email', verifyJWT, async (req, res) => {
 			const email = req.params.email;
 			if (!email) {
 				res.send();
+			}
+			const decodedEmail = req.decoded.email;
+			if (email !== decodedEmail) {
+				return res
+					.status(403)
+					.send({ error: true, message: 'Forbidden Message' });
 			}
 			const query = { email: email };
 			const result = await cartCollection.find(query).toArray();
 			res.send(result);
 		});
 
-		app.post('/cart', async (req, res) => {
+		app.post('/cart', verifyJWT, async (req, res) => {
 			const item = req.body;
 			const { classId, email } = item;
 			const query = { classId, email };
@@ -163,15 +174,22 @@ async function run() {
 			res.send(result);
 		});
 
+		app.delete('/cart/:id', async (req, res) => {
+			const id = req.params.id;
+			const query = { _id: new ObjectId(id) };
+			const result = await cartCollection.deleteOne(query);
+			res.send(result);
+		});
+
 		// instructor api
 		app.get('/users/instructor', async (req, res) => {
-			const query = { role: 'instructor' };
+			const query = { role: 'Instructor' };
 			const instructors = await usersCollection.find(query).toArray();
 			res.send(instructors);
 		});
 
 		app.get('/users/sortInstructor', async (req, res) => {
-			const query = { role: 'instructor' };
+			const query = { role: 'Instructor' };
 			const instructor = await usersCollection.find(query).limit(6).toArray();
 			res.send(instructor);
 		});
@@ -183,11 +201,35 @@ async function run() {
 			const instructorClass = await classCollection.find(query).toArray();
 			res.send(instructorClass);
 		});
-
+		// admin apis
 		app.get('/users/admin', async (req, res) => {
-			const query = { role: 'admin' };
+			const query = { role: 'Admin' };
 			const admin = await usersCollection.find(query).toArray();
 			res.send(admin);
+		});
+
+		app.patch('/users/make-admin/:id', async (req, res) => {
+			const id = req.params.id;
+			const query = { _id: new ObjectId(id) };
+			const updateDoc = {
+				$set: {
+					role: 'Admin',
+				},
+			};
+			const result = await usersCollection.updateOne(query, updateDoc);
+			res.send(result);
+		});
+
+		app.patch('/users/make-instructor/:id', async (req, res) => {
+			const id = req.params.id;
+			const query = { _id: new ObjectId(id) };
+			const updateDoc = {
+				$set: {
+					role: 'Instructor',
+				},
+			};
+			const result = await usersCollection.updateOne(query, updateDoc);
+			res.send(result);
 		});
 
 		// Send a ping to confirm a successful connection
