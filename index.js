@@ -66,46 +66,10 @@ async function run() {
 			res.send({ token });
 		});
 
-		const verifyStudent = async (req, res, next) => {
-			const email = req.decoded.email;
-			const query = { email: email };
-			const user = await usersCollection.findOne(query);
-			if (user?.role !== 'student') {
-				return res
-					.status(403)
-					.send({ error: true, message: 'Forbidden Message' });
-			}
-			next();
-		};
-
-		const verifyInstructor = async (req, res, next) => {
-			const email = req.decoded.email;
-			const query = { email: email };
-			const user = await usersCollection.findOne(query);
-			if (user?.role !== 'student') {
-				return res
-					.status(403)
-					.send({ error: true, message: 'Forbidden Message' });
-			}
-			next();
-		};
-
-		const verifyAdmin = async (req, res, next) => {
-			const email = req.decoded.email;
-			const query = { email: email };
-			const user = await usersCollection.findOne(query);
-			if (user?.role !== 'student') {
-				return res
-					.status(403)
-					.send({ error: true, message: 'Forbidden Message' });
-			}
-			next();
-		};
-
 		// class api
 		app.get('/allClass/:sort', async (req, res) => {
 			const classSort = req.params.sort;
-			const query = {};
+			const query = { status: 'approved' };
 			const options = {
 				sort: { numberOfStudents: -1 },
 			};
@@ -116,9 +80,49 @@ async function run() {
 					.toArray();
 				res.send(classes);
 			} else {
-				const classes = await classCollection.find().toArray();
+				const classes = await classCollection.find(query).toArray();
 				res.send(classes);
 			}
+		});
+
+		app.get('/all-class-admin', verifyJWT, async (req, res) => {
+			const query = {};
+			const options = {
+				sort: { status: -1 },
+			};
+			const allClass = await classCollection.find(query, options).toArray();
+			res.send(allClass);
+		});
+
+		app.get('/my-class/:id', async (req, res) => {
+			const id = req.params.id;
+			const query = { _id: new ObjectId(id) };
+			const result = await classCollection.findOne(query);
+			res.send(result);
+		});
+
+		app.post('/allClass', async (req, res) => {
+			const myClass = req.body;
+			const result = await classCollection.insertOne(myClass);
+			res.send(result);
+		});
+
+		app.patch('/my-class/:id', verifyJWT, async (req, res) => {
+			const id = req.params.id;
+			const myClass = req.body;
+			const query = { _id: new ObjectId(id) };
+			const updateDoc = {
+				$set: {
+					className: myClass.className,
+					instructor: myClass.instructor,
+					imageUrl: myClass.imageUrl,
+					email: myClass.email,
+					availableSeats: myClass.availableSeats,
+					price: myClass.price,
+				},
+			};
+			const result = await classCollection.updateOne(query, updateDoc);
+			res.send(result);
 		});
 
 		// users api
@@ -195,20 +199,22 @@ async function run() {
 		});
 
 		// get name and number of class for each instructor
-		app.get('/class/:name', async (req, res) => {
-			const name = decodeURIComponent(req.params.name);
-			const query = { instructor: name };
+		app.get('/class/:email', verifyJWT, async (req, res) => {
+			const email = req.params.email;
+			const query = { email: email };
 			const instructorClass = await classCollection.find(query).toArray();
 			res.send(instructorClass);
 		});
+
 		// admin apis
+
 		app.get('/users/admin', async (req, res) => {
 			const query = { role: 'Admin' };
 			const admin = await usersCollection.find(query).toArray();
 			res.send(admin);
 		});
 
-		app.patch('/users/make-admin/:id', async (req, res) => {
+		app.patch('/users/make-admin/:id', verifyJWT, async (req, res) => {
 			const id = req.params.id;
 			const query = { _id: new ObjectId(id) };
 			const updateDoc = {
@@ -220,7 +226,7 @@ async function run() {
 			res.send(result);
 		});
 
-		app.patch('/users/make-instructor/:id', async (req, res) => {
+		app.patch('/users/make-instructor/:id', verifyJWT, async (req, res) => {
 			const id = req.params.id;
 			const query = { _id: new ObjectId(id) };
 			const updateDoc = {
@@ -229,6 +235,86 @@ async function run() {
 				},
 			};
 			const result = await usersCollection.updateOne(query, updateDoc);
+			res.send(result);
+		});
+
+		app.patch('/all-class-admin/approved/:id', verifyJWT, async (req, res) => {
+			const id = req.params.id;
+			const query = { _id: new ObjectId(id) };
+			const updateDoc = {
+				$set: {
+					status: 'approved',
+				},
+			};
+			const result = await classCollection.updateOne(query, updateDoc);
+			res.send(result);
+		});
+
+		app.patch('/all-class-admin/denied/:id', verifyJWT, async (req, res) => {
+			const id = req.params.id;
+			const query = { _id: new ObjectId(id) };
+			const updateDoc = {
+				$set: {
+					status: 'denied',
+				},
+			};
+			const result = await classCollection.updateOne(query, updateDoc);
+			res.send(result);
+		});
+
+		app.put('/all-class-admin/feedback/:id', verifyJWT, async (req, res) => {
+			const id = req.params.id;
+			const body = req.body;
+			const query = { _id: new ObjectId(id) };
+			const updateDoc = {
+				$set: {
+					feedback: body.feedback,
+				},
+			};
+			const options = { upsert: true };
+			const result = await classCollection.updateOne(query, updateDoc, options);
+			res.send(result);
+		});
+
+		// verify admin
+		app.get('/user/admin/:email', verifyJWT, async (req, res) => {
+			const email = req.params.email;
+
+			if (req.decoded.email !== email) {
+				return res.send({ admin: false });
+			}
+
+			const query = { email: email };
+			const user = await usersCollection.findOne(query);
+			const result = { admin: user?.role === 'Admin' };
+			res.send(result);
+		});
+
+		// verify instructor
+		app.get('/user/instructor/:email', verifyJWT, async (req, res) => {
+			const email = req.params.email;
+
+			if (req.decoded.email !== email) {
+				return res.send({ instructor: false });
+			}
+
+			const query = { email: email };
+			const user = await usersCollection.findOne(query);
+			const result = { instructor: user?.role === 'Instructor' };
+			res.send(result);
+		});
+
+		// verify student
+		app.get('/user/student/:email', verifyJWT, async (req, res) => {
+			const email = req.params.email;
+
+			if (req.decoded.email !== email) {
+				return res.send({ student: false });
+			}
+
+			const query = { email: email };
+			const user = await usersCollection.findOne(query);
+			const result = { student: user?.role === 'Student' };
 			res.send(result);
 		});
 
