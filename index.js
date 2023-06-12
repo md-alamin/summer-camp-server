@@ -3,6 +3,7 @@ const app = express();
 const cors = require('cors');
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const jwt = require('jsonwebtoken');
+const stripe = require('stripe')(process.env.PAYMENT_SECRET_KEY);
 require('dotenv').config();
 const port = process.env.PORT || 5000;
 
@@ -94,7 +95,7 @@ async function run() {
 			res.send(allClass);
 		});
 
-		app.get('/my-class/:id', async (req, res) => {
+		app.get('/my-class/:id', verifyJWT, async (req, res) => {
 			const id = req.params.id;
 			const query = { _id: new ObjectId(id) };
 			const result = await classCollection.findOne(query);
@@ -185,6 +186,18 @@ async function run() {
 			res.send(result);
 		});
 
+		// // payment intent
+		// app.post('/create-payment-intent', async (req, res) => {
+		// 	const { price } = req.body;
+		// 	const amount = price * 100;
+		// 	const paymentIntent = await stripe.paymentIntents.create({
+		// 		amount: amount,
+		// 		currency: 'usd',
+		// 		payment_method_types: ['card'],
+		// 	});
+		// 	res.send({ clientSecret: paymentIntent.client_secret });
+		// });
+
 		// instructor api
 		app.get('/users/instructor', async (req, res) => {
 			const query = { role: 'Instructor' };
@@ -204,14 +217,6 @@ async function run() {
 			const query = { email: email };
 			const instructorClass = await classCollection.find(query).toArray();
 			res.send(instructorClass);
-		});
-
-		// admin apis
-
-		app.get('/users/admin', async (req, res) => {
-			const query = { role: 'Admin' };
-			const admin = await usersCollection.find(query).toArray();
-			res.send(admin);
 		});
 
 		app.patch('/users/make-admin/:id', verifyJWT, async (req, res) => {
